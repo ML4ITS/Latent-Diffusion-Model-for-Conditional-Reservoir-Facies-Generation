@@ -1,0 +1,21 @@
+train_ratio: 0.8
+
+# train
+n_categories: 4  # number of facies types.
+n_epochs: 10000  # number of epochs of training
+batch_size: 32
+lr: 0.0002  # adam: learning rate
+b1: 0.5  # adam: decay of first order momentum of gradient
+b2: 0.999  # adam: decay of first order momentum of gradient
+n_cpu: 0  # number of cpu threads to use during batch generation
+img_size: 128  # original size of input
+unet_in_size: 256
+sample_interval: 10  # interval between sampling of images from generators
+checkpoint_interval: 1000  # interval between model checkpoints
+device: 0  # gpu device index
+
+content_loss_weight: 100
+diversity_loss_weight: 0.05
+
+# sample
+epoch_of_pretrained_model: 10000

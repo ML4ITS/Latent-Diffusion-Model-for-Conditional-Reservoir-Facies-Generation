@@ -1,0 +1,53 @@
+dataset:
+  dirname: 'facies_5000'  #'dataset/facies'
+  train_ratio: 0.8
+  in_channels: 4
+  data_scaling: True
+  n_categories: 4
+  batch_sizes:
+    stage1: 64
+    stage2: 16
+  num_workers: 0
+
+trainer_params:
+  gpu_idx: 0
+  LR:
+    stage1: 0.001
+    stage2: 0.0001 #0.00008
+  max_epochs:
+    stage1: 200
+  max_num_steps:
+    stage2: 14000  #7000
+  save_period_in_epoch: 10
+  check_val_every_n_epoch: 10
+
+encoder:
+  dim: 64
+  bottleneck_dim: 4    # small codebook_dim makes the diffusion modeling easier.
+  n_resnet_blocks: 4
+  downsampling_rate: 2  # the actual compression rate is `downsampling_rate ** 2` given both height and width.
+  output_norm: True
+
+decoder:
+  dim: 64
+  n_resnet_blocks: 4
+
+
+VQ-VAE:  # hyper-parameter choice is made based on the LDM paper
+  codebook_size: 256
+  decay: 0.8
+  commitment_weight: 1.
+  emb_dropout: 0.
+  kmeans_init: False
+  threshold_ema_dead_code: 0
+
+diffusion:
+  stage1_ckpt_fname: 'stage1.ckpt'
+  unet:
+    dim: 64
+    self_condition: False
+  p_unconditional: 0.1
+  classifier_free_guidance_scale: 1.0
+  preserv_loss_weight: 1
+  save_and_sample_every: 1000  # {100, 1000}
+  num_samples: 9
