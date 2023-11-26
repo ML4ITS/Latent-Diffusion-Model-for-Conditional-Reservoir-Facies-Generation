@@ -49,8 +49,8 @@ class ModuleBase(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         raise NotImplemented
 
-    def training_epoch_end(self, outs) -> None:
-        mean_outs = compute_avg_outs(outs)
+    def on_train_epoch_end(self) -> None:
+        mean_outs = compute_avg_outs(self.training_step_outputs)
         log_items = get_log_items_epoch('train', self.current_epoch, mean_outs)
         wandb.log(log_items)
 
@@ -58,8 +58,8 @@ class ModuleBase(pl.LightningModule):
         log_items = get_log_items_global_step('train', self.global_step, out)
         wandb.log(log_items)
 
-    def validation_epoch_end(self, outs) -> None:
-        mean_outs = compute_avg_outs(outs)
+    def on_validation_epoch_end(self) -> None:
+        mean_outs = compute_avg_outs(self.validation_step_outputs)
         log_items = get_log_items_epoch('val', self.current_epoch, mean_outs)
         wandb.log(log_items)
 
@@ -69,12 +69,12 @@ class ModuleBase(pl.LightningModule):
 
     def configure_optimizers(self):
         raise NotImplemented
-
-    def test_epoch_end(self, outs) -> None:
-        mean_outs = compute_avg_outs(outs)
-        log_items = get_log_items_epoch('test', self.current_epoch, mean_outs)
-        wandb.log(log_items)
-
-    def test_step_end(self, out) -> None:
-        log_items = get_log_items_global_step('test', self.global_step, out)
-        wandb.log(log_items)
+    #
+    # def test_epoch_end(self, outs) -> None:
+    #     mean_outs = compute_avg_outs(outs)
+    #     log_items = get_log_items_epoch('test', self.current_epoch, mean_outs)
+    #     wandb.log(log_items)
+    #
+    # def test_step_end(self, out) -> None:
+    #     log_items = get_log_items_global_step('test', self.global_step, out)
+    #     wandb.log(log_items)

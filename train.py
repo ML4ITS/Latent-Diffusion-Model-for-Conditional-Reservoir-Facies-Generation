@@ -33,13 +33,13 @@ args = parser.parse_args()
 if __name__ == '__main__':
 
     if args.method == 'unet_gan':
-        runpy.run_path(path_name=get_root_dir().joinpath('methods', 'unet_gan', 'unet_gan.py'))
+        runpy.run_path(path_name=str(get_root_dir().joinpath('methods', 'unet_gan', 'unet_gan.py')))
     elif args.method == 'ldm_stage1':
-        runpy.run_path(path_name=get_root_dir().joinpath('methods', 'ldm', 'stage1.py'))
+        runpy.run_path(path_name=str(get_root_dir().joinpath('methods', 'ldm', 'stage1.py')))
     elif args.method == 'ldm_stage2':
-        runpy.run_path(path_name=get_root_dir().joinpath('methods', 'ldm', 'stage2.py'))
+        runpy.run_path(path_name=str(get_root_dir().joinpath('methods', 'ldm', 'stage2.py')))
     elif args.method == 'ldm':
-        runpy.run_path(path_name=get_root_dir().joinpath('methods', 'ldm', 'stage1.py'))
-        runpy.run_path(path_name=get_root_dir().joinpath('methods', 'ldm', 'stage2.py'))
+        runpy.run_path(path_name=str(get_root_dir().joinpath('methods', 'ldm', 'stage1.py')))
+        runpy.run_path(path_name=str(get_root_dir().joinpath('methods', 'ldm', 'stage2.py')))
     else:
         raise ValueError

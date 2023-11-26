@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import wandb
 from einops import rearrange
 from torch.optim.lr_scheduler import CosineAnnealingLR
+import pytorch_lightning as pl
 
 from methods.ldm.models.vq_enc_dec import VQVAEEncoder, VQVAEDecoder
 from methods.ldm.models.vq import VectorQuantize
@@ -29,7 +30,7 @@ def quantize(z, vq_model, transpose_channel_length_axes=False, **kwargs):
     return z_q, indices, vq_loss, perplexity
 
 
-class ModuleVQVAE(ModuleBase):
+class ModuleVQVAE(pl.LightningModule):
     def __init__(self,
                  img_size: int,
                  config: dict,
@@ -135,17 +136,16 @@ class ModuleVQVAE(ModuleBase):
         sch.step()
 
         # log
-        loss_hist = {'loss': loss,
-                     'categorical_recons_loss': categorical_recons_loss,
+        loss_hist = {'categorical_recons_loss': categorical_recons_loss,
                      'vq_loss': vq_loss,
                      'perplexity': perplexity,
                      'categorical_recons_loss_cond': categorical_recons_loss_cond,
                      'vq_loss_cond': vq_loss_cond,
                      'perplexity_cond': perplexity_cond,
                      }
-
-        detach_the_unnecessary(loss_hist)
-        return loss_hist
+        loss_hist = {f'train/{k}': v for k, v in loss_hist.items()}
+        self.log_dict(loss_hist)
+        return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
         x, x_cond = batch
@@ -155,37 +155,16 @@ class ModuleVQVAE(ModuleBase):
         loss += categorical_recons_loss_cond + vq_loss_cond
 
         # log
-        loss_hist = {'loss': loss,
-                     'categorical_recons_loss': categorical_recons_loss,
+        loss_hist = {'categorical_recons_loss': categorical_recons_loss,
                      'vq_loss': vq_loss,
                      'perplexity': perplexity,
                      'categorical_recons_loss_cond': categorical_recons_loss_cond,
                      'vq_loss_cond': vq_loss_cond,
                      'perplexity_cond': perplexity_cond,
                      }
-
-        detach_the_unnecessary(loss_hist)
-        return loss_hist
-
-    def test_step(self, batch, batch_idx):
-        x, x_cond = batch
-        categorical_recons_loss, vq_loss, perplexity = self.forward(x, kind='x')
-        categorical_recons_loss_cond, vq_loss_cond, perplexity_cond = self.forward(x_cond, kind='x_cond')
-        loss = categorical_recons_loss + vq_loss
-        loss += categorical_recons_loss_cond + vq_loss_cond
-
-        # log
-        loss_hist = {'loss': loss,
-                     'categorical_recons_loss': categorical_recons_loss,
-                     'vq_loss': vq_loss,
-                     'perplexity': perplexity,
-                     'categorical_recons_loss_cond': categorical_recons_loss_cond,
-                     'vq_loss_cond': vq_loss_cond,
-                     'perplexity_cond': perplexity_cond,
-                     }
-
-        detach_the_unnecessary(loss_hist)
-        return loss_hist
+        loss_hist = {f'train/{k}': v for k, v in loss_hist.items()}
+        self.log_dict(loss_hist)
+        return {'loss': loss}
 
     def configure_optimizers(self):
         opt = torch.optim.AdamW([{'params': self.parameters(),

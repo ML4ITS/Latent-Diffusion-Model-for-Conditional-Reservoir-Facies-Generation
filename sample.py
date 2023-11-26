@@ -1,6 +1,6 @@
 import argparse
 import runpy
-from methods import get_root_dir
+from methods.utils import get_root_dir
 
 
 parser = argparse.ArgumentParser()

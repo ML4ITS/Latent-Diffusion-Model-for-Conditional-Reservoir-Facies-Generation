@@ -5,6 +5,18 @@ This is an official GitHub repository for the PyTorch implementation of [Latent 
 
 ## Usage
 
+#### LDM for Conditional Reservoir Facies Generation
+To train the LDM, run
+```commandline
+python train.py --method ldm_stage1  # stage 1 training
+python train.py --method ldm_stage2  # stage 2 training
+```
+To sample with the trained LDM, run
+```commandline
+
+```
+
+
 #### U-Net GAN
 The [U-Net GAN](https://link.springer.com/article/10.1007/s10596-020-10027-w) paper proposed to utilize the [pix2pix-style GAN](https://arxiv.org/abs/1611.07004) for conditional facies generation.
 To train the U-Net GAN, run
