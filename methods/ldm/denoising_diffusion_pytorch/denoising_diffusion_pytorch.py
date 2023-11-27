@@ -1204,20 +1204,16 @@ class Trainer(object):
                         y_pred = rearrange(x_hat, 'b c h w -> (b h w) c')  # (bhw c)
                         categorical_recons_loss = F.cross_entropy(y_pred, y_true)
 
-                        # total loss
+                        # (a), (c)
                         # `preserv_loss`: preserves the conditional information in generated samples.
                         # `(vq_loss['loss'] + categorical_recons_loss)` preserves the ability of the decoder.
-                        # loss = diff_loss + \
-                        #        self.preserv_loss_weight * preserv_loss + \
-                        #        (vq_loss['loss'] + categorical_recons_loss)
+                        loss = diff_loss + \
+                               self.preserv_loss_weight * preserv_loss + \
+                               (vq_loss['loss'] + categorical_recons_loss)
 
                         # (b)
                         # loss = diff_loss + \
                         #        (vq_loss['loss'] + categorical_recons_loss)
-
-                        # (a)
-                        loss = diff_loss + \
-                               self.preserv_loss_weight * preserv_loss
 
                         loss = loss / self.gradient_accumulate_every
                         total_loss += loss.item()
