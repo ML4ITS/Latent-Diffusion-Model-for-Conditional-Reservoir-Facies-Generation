@@ -62,8 +62,8 @@ optimizer_G = torch.optim.Adam(generator.parameters(), lr=config['lr'], betas=(c
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=config['lr'], betas=(config['b1'], config['b2']))
 
 # Configure dataloaders
-dirname = get_root_dir().joinpath('dataset', 'facies_200')
-dataset_importer = DatasetImporter(dirname,
+fname = get_root_dir().joinpath('dataset', 'facies_5000.npy')
+dataset_importer = DatasetImporter(fname,
                                    train_ratio=config['train_ratio'],
                                    data_scaling=True,
                                    n_categories=4)

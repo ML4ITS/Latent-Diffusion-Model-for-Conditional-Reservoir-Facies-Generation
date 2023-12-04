@@ -11,7 +11,7 @@ n_cpu: 0  # number of cpu threads to use during batch generation
 img_size: 128  # original size of input
 unet_in_size: 256
 sample_interval: 10  # interval between sampling of images from generators
-checkpoint_interval: 1000  # interval between model checkpoints
+checkpoint_interval: 50  # interval between model checkpoints
 device: 0  # gpu device index
 
 content_loss_weight: 100

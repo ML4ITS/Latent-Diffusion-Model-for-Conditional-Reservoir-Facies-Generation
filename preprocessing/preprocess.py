@@ -17,7 +17,7 @@ class DatasetImporter(object):
     Import a dataset and store it in the instance.
     """
     def __init__(self,
-                 dirname,
+                 fname,
                  train_ratio: float,
                  data_scaling: bool,
                  n_categories: int,
@@ -30,24 +30,14 @@ class DatasetImporter(object):
         self.data_root = get_root_dir().joinpath("dataset")
 
         # fetch an entire dataset
-        full_dirname = get_root_dir().joinpath('dataset', dirname)
-        fnames = os.listdir(full_dirname)
-        X = None
-        for i, fname in enumerate(fnames):
-            print(f'Data loading... {round(i / len(fnames) * 100)}%') if i % 100 == 0 else None
-            x = pd.read_csv(os.path.join(full_dirname, fname), header=None).values  # (h w)
-
-            # create n channels for n categories
-            h, w = x.shape
-            unique_categories = np.unique(x)
-            x_new = np.zeros((self.n_categories, h, w))  # (c h w)
-            for j, c in enumerate(unique_categories):
-                x_new[j] = np.array(x == c, dtype=float)
-
-            if i == 0:
-                b = len(fnames)
-                X = np.zeros((b, self.n_categories, h, w))  # (b c h w)
-            X[i] = x_new
+        full_dirname = get_root_dir().joinpath('dataset', fname)
+        X = np.load(full_dirname)  # (b h w)
+        facies_ind = np.unique(X)
+        X_new = np.zeros((X.shape[0], len(facies_ind), X.shape[1], X.shape[2]))  # (b c h w)
+        for i in facies_ind:
+            X_new[:,i,:,:] = (X == i)
+        X = X_new  # (b c h w)
+        X = np.flip(X, axis=2)
 
         # split X into X_train and X_test
         self.X_train, self.X_test = train_test_split(X, train_size=train_ratio, random_state=0)
@@ -171,7 +161,7 @@ if __name__ == "__main__":
     os.chdir("../")
 
     # data pipeline
-    dataset_importer = DatasetImporter(get_root_dir().joinpath('dataset', 'facies_200'),
+    dataset_importer = DatasetImporter('facies_5000.npy',
                                        train_ratio=0.8,
                                        data_scaling=True,
                                        n_categories=4)

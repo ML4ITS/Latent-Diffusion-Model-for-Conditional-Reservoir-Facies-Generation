@@ -1,3 +1,6 @@
+"""
+source code: https://github.com/eriklindernoren/PyTorch-GAN/blob/master/implementations/pix2pix/models.py
+"""
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
