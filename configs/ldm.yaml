@@ -1,5 +1,5 @@
 dataset:
-  dirname: 'facies_5000'  #'dataset/facies'
+  fname: 'facies_5000.npy'  #'dataset/facies'
   train_ratio: 0.8
   in_channels: 4
   data_scaling: True
