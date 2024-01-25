@@ -1,0 +1,21 @@
+accelerate==0.23.0
+einops
+matplotlib
+numpy
+pandas
+Pillow
+PyYAML==6.0.1
+scikit_learn
+tqdm==4.66.1
+
+-f https://download.pytorch.org/whl/torch_stable.html
+torch==1.13.1+cu117
+
+ema_pytorch==0.2.3
+lion_pytorch==0.1.2
+
+pytorch_lightning==1.9.0
+denoising_diffusion_pytorch
+x_transformers==1.7.15
+
+wandb

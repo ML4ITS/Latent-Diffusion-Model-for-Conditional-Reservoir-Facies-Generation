@@ -11,13 +11,13 @@ dataset:
 
 trainer_params:
   gpu_idx: 0
-  LR:
+  LR:  # learning rate
     stage1: 0.001
-    stage2: 0.0001 #0.00008
+    stage2: 0.0001
   max_epochs:
     stage1: 200
-  max_num_steps:
-    stage2: 14000  #7000
+  max_num_steps:  # it uses steps instead of epochs due to the DDPM implementation
+    stage2: 14000
   save_period_in_epoch: 10
   check_val_every_n_epoch: 10
 
@@ -26,7 +26,7 @@ encoder:
   bottleneck_dim: 4    # small codebook_dim makes the diffusion modeling easier.
   n_resnet_blocks: 4
   downsampling_rate: 2  # the actual compression rate is `downsampling_rate ** 2` given both height and width.
-  output_norm: True
+  output_norm: True  # normalize `z` to be within [-1, 1]
 
 decoder:
   dim: 64
@@ -42,11 +42,11 @@ VQ-VAE:  # hyper-parameter choice is made based on the LDM paper
   threshold_ema_dead_code: 0
 
 diffusion:
-  stage1_ckpt_fname: 'stage1.ckpt'
+  stage1_ckpt_fname: 'stage1.ckpt'  # saved file name for the model from stage 1
   unet:
     dim: 64
     self_condition: False
-  p_unconditional: 0.1
+  p_unconditional: 0.1  # rate for unconditional generation during training
   classifier_free_guidance_scale: 1.0
   preserv_loss_weight: 1
   save_and_sample_every: 1000  # {100, 1000}

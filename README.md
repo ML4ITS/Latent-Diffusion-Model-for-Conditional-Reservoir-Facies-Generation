@@ -11,6 +11,26 @@ The following figure illustrates the gradual generation process (_i.e.,_ noise t
 </p>
 
 
+## Install / Environment setup
+You should first create a virtual environment, and activate the environment.
+Then you can install the necessary libraries by running the following command.
+```commandline
+pip install -r requirements.txt
+```
+You might encounter some error with PyTorch due to your device's compatible versions. 
+Then, you can install the right PyTorch version for your device.
+
+## Dataset Download
+The used dataset in the paper is stored in `dataset/facies_5000.zip`. 
+You can simply unzip it to get `facies_5000.npy` (numpy array file that contains 5000 samples).
+The preprocessing code takes `dataset/facies_5000.npy` as input.
+
+## Configuration
+- `configs/ldm.yaml`: configuration for the proposed LDM.
+- `config/unet_ga.yaml`: configuration for the GAN.
+
+Detailed description of each item in the configuration is included as annotation.
+
 ## Usage
 
 #### LDM for Conditional Reservoir Facies Generation
