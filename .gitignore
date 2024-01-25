@@ -165,6 +165,7 @@ wandb/
 methods/unet_gan/saved_models/
 ***/*.ckpt
 ***/*.png
+!.fig/gradual_sampling_process.png
 ***/*.ipynb
 methods/ldm/results/*
 methods/ldm/lightning_logs/*
