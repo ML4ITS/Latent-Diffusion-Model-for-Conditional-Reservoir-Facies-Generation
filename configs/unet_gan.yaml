@@ -18,4 +18,4 @@ content_loss_weight: 100
 diversity_loss_weight: 0.05
 
 # sample
-epoch_of_pretrained_model: 10000
+epoch_of_pretrained_model: 300

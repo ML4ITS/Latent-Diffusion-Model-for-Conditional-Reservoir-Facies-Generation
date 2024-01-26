@@ -159,7 +159,7 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-dataset/
+dataset/facies_5000.npy
 .idea/
 wandb/
 methods/unet_gan/saved_models/
@@ -167,5 +167,6 @@ methods/unet_gan/saved_models/
 ***/*.png
 !.fig/gradual_sampling_process.png
 ***/*.ipynb
+!sample_ldm.ipynb
 methods/ldm/results/*
 methods/ldm/lightning_logs/*

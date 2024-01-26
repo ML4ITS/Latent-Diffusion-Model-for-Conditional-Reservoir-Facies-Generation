@@ -51,3 +51,6 @@ diffusion:
   preserv_loss_weight: 1
   save_and_sample_every: 1000  # {100, 1000}
   num_samples: 9
+
+sampling:
+  trained_stage2_module_fname: 'stage2_a-14.ckpt'  # within `methods/ldm/saved_models/`

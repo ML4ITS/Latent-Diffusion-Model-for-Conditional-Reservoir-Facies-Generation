@@ -16,12 +16,7 @@ config_fname = get_root_dir().joinpath('configs', 'unet_gan.yaml')
 config = load_yaml_param_settings(config_fname)
 
 # load the test data loader
-# Configure dataloaders
-dirname = get_root_dir().joinpath('dataset', 'facies_200')
-dataset_importer = DatasetImporter(dirname,
-                                   train_ratio=0.8,
-                                   data_scaling=True,
-                                   n_categories=4)
+dataset_importer = DatasetImporter(**config['dataset'])
 test_dataloader = DataLoader(GeoDataset("test", dataset_importer), batch_size=config['batch_size'], num_workers=0, shuffle=True)
 
 # load the pretrained GAN model
