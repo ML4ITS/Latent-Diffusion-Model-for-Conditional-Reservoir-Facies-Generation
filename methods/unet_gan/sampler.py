@@ -28,8 +28,8 @@ class GANSampler(object):
         self.generator.load_state_dict(checkpoint)
         self.generator.to(self.device)
 
-
-        self.generator.eval()  # inference mode
+        # inference mode
+        self.generator.eval()  
     
     @torch.no_grad()
     def unconditional_sampling(self, n_samples: int) -> torch.Tensor:
@@ -51,11 +51,11 @@ class GANSampler(object):
         
         # postprocess
         fake_x = fake_x[:, 0, :, :]  # (b h w)
-        fake_x = torch.clip(fake_x, min=0, max=self.n_categories-1)  # (b h w)
+        fake_x = torch.clip(torch.round(fake_x), min=0, max=self.n_categories-1)  # (b h w)
         return fake_x
 
     @torch.no_grad()
-    def conditional_sampling(self, x_cond: torch.Tensor):
+    def conditional_sampling(self, x_cond: torch.Tensor) -> torch.Tensor:
         """
         Generate a synthetic sample based on the given conditional input.
 
@@ -73,6 +73,6 @@ class GANSampler(object):
 
         # postprocess
         fake_x = fake_x[:, 0, :, :]  # (b h w)
-        fake_x = torch.clip(fake_x, min=0, max=self.n_categories-1)  # discretize to facies indices; (b h w)
+        fake_x = torch.clip(torch.round(fake_x), min=0, max=self.n_categories-1)  # discretize to facies indices; (b h w)
         return fake_x
     

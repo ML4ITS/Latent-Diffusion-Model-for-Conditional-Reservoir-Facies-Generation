@@ -171,4 +171,4 @@ methods/ldm/lightning_logs/*
 
 ***/*.ipynb
 !sample_ldm.ipynb
-!sample_unet_gan.ipynb
+!sample_gan.ipynb
