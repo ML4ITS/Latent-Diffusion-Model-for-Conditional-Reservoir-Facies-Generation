@@ -166,7 +166,9 @@ methods/unet_gan/saved_models/
 ***/*.ckpt
 ***/*.png
 !.fig/gradual_sampling_process.png
-***/*.ipynb
-!sample_ldm.ipynb
 methods/ldm/results/*
 methods/ldm/lightning_logs/*
+
+***/*.ipynb
+!sample_ldm.ipynb
+!sample_unet_gan.ipynb
