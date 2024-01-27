@@ -39,10 +39,7 @@ To train the LDM, run
 python train.py --method ldm_stage1  # stage 1 training
 python train.py --method ldm_stage2  # stage 2 training
 ```
-To sample with the trained LDM, run
-```commandline
-
-```
+For sampling, `sample_ldm.ipynb` provides a tutorial.
 
 
 #### U-Net GAN
@@ -51,10 +48,5 @@ To train the U-Net GAN, run
 ```commandline
 python train.py --method unet_gan
 ```
-To sample with the trained U-Net GAN, run
-```commandline
-python sample.py --method unet_gan
-```
-Its parameters can be adjusted in `configs/unet_gan.yaml`.
-
+For sampling, `sample_gan.ipynb` provides a tutorial.
 
