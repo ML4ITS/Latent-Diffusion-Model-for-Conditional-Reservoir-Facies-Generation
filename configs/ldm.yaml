@@ -21,7 +21,7 @@ trainer_params:
   max_num_steps:  # it uses steps instead of epochs due to the DDPM implementation
     stage2: 14000
   save_period_in_epoch: 10
-  check_val_every_n_epoch: 10
+  check_val_every_n_epoch: 1
 
 # encoder:
 #   dim: 64
@@ -33,7 +33,7 @@ encoder:
   init_dim: 128
   hid_dim: 4  # bottleneck dim
   downsample_rate: 2  # the actual compression rate is `downsampling_rate ** 2` given both height and width.
-  n_resnet_blocks: 8
+  n_resnet_blocks: 4
   bottleneck_dim: 4    # small codebook_dim makes the diffusion modeling easier.
   output_norm: True  # normalize `z` to be within [-1, 1]
 

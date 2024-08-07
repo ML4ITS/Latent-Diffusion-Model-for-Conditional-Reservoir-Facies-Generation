@@ -9,7 +9,7 @@ from matplotlib.colors import ListedColormap
 
 from methods.ldm.models.vq_enc_dec import VQVAEEncoder, VQVAEDecoder
 from methods.ldm.models.vq import VectorQuantize
-from methods.ldm.modules.module_base import ModuleBase, detach_the_unnecessary
+from methods.utils import linear_warmup_cosine_annealingLR
 
 
 def quantize(z, vq_model, transpose_channel_length_axes=False, **kwargs):
@@ -55,7 +55,7 @@ class ModuleVQVAE(pl.LightningModule):
         self.decoder_cond = VQVAEDecoder(in_channels+1, **config['encoder'])
         self.vq_model_cond = VectorQuantize(config['encoder']['hid_dim'], **config['VQ-VAE'])
 
-    def forward(self, x, kind):
+    def forward(self, batch_idx, x, kind):
         assert kind in ['x', 'x_cond']
 
         if kind == 'x':
@@ -82,7 +82,7 @@ class ModuleVQVAE(pl.LightningModule):
 
         # plot `x` and `xhat`
         r = np.random.rand()
-        if self.training and r <= 0.05:
+        if not self.training and (batch_idx == 0):
             x = x.cpu()
             xhat = xhat.detach().cpu()
             b = np.random.randint(0, x.shape[0])
@@ -126,8 +126,8 @@ class ModuleVQVAE(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, x_cond = batch
-        categorical_recons_loss, vq_loss, perplexity = self.forward(x, kind='x')
-        categorical_recons_loss_cond, vq_loss_cond, perplexity_cond = self.forward(x_cond, kind='x_cond')
+        categorical_recons_loss, vq_loss, perplexity = self.forward(batch_idx, x, kind='x')
+        categorical_recons_loss_cond, vq_loss_cond, perplexity_cond = self.forward(batch_idx, x_cond, kind='x_cond')
         loss = categorical_recons_loss + vq_loss
         loss += categorical_recons_loss_cond + vq_loss_cond
 
@@ -149,8 +149,8 @@ class ModuleVQVAE(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, x_cond = batch
-        categorical_recons_loss, vq_loss, perplexity = self.forward(x, kind='x')
-        categorical_recons_loss_cond, vq_loss_cond, perplexity_cond = self.forward(x_cond, kind='x_cond')
+        categorical_recons_loss, vq_loss, perplexity = self.forward(batch_idx, x, kind='x')
+        categorical_recons_loss_cond, vq_loss_cond, perplexity_cond = self.forward(batch_idx, x_cond, kind='x_cond')
         loss = categorical_recons_loss + vq_loss
         loss += categorical_recons_loss_cond + vq_loss_cond
 
@@ -167,7 +167,5 @@ class ModuleVQVAE(pl.LightningModule):
         return {'loss': loss}
 
     def configure_optimizers(self):
-        opt = torch.optim.AdamW([{'params': self.parameters(),
-                                  'lr': self.config['trainer_params']['LR']['stage1']},
-                                 ])
-        return {'optimizer': opt, 'lr_scheduler': CosineAnnealingLR(opt, self.T_max)}
+        opt = torch.optim.AdamW([{'params': self.parameters(), 'lr': self.config['trainer_params']['LR']['stage1']},])
+        return {'optimizer': opt, 'lr_scheduler': linear_warmup_cosine_annealingLR(opt, max_steps=self.T_max)}
