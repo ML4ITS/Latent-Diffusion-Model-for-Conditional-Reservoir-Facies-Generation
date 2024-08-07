@@ -6,6 +6,7 @@ import os
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn.functional as F
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
 
@@ -19,8 +20,8 @@ class DatasetImporter(object):
     def __init__(self,
                  fname,
                  train_ratio: float,
-                 data_scaling: bool,
                  n_categories: int,
+                 target_input_dim:list,
                  **kwargs):
         """
         :param data_scaling
@@ -41,12 +42,20 @@ class DatasetImporter(object):
 
         # split X into X_train and X_test
         self.X_train, self.X_test = train_test_split(X, train_size=train_ratio, random_state=0)
+        
+        # interpolate `X` to the target input dimension
+        self.X_train = F.interpolate(torch.from_numpy(self.X_train), size=target_input_dim, mode='bilinear').numpy().astype(float)  # (b c h w)
+        self.X_test = F.interpolate(torch.from_numpy(self.X_test), size=target_input_dim, mode='bilinear').numpy().astype(float)  # (b c h w)
+        X_train_argmax = np.argmax(self.X_train, axis=1)  # (b h w)
+        X_test_argmax = np.argmax(self.X_test, axis=1)  # (b h w)
 
-        if data_scaling:
-            min_val = np.min(self.X_train)
-            max_val = np.max(self.X_train)
-            self.X_train = (self.X_train - min_val) / (max_val - min_val)
-            self.X_test = (self.X_test - min_val) / (max_val - min_val)
+        X_train = np.zeros(self.X_train.shape)  # (b c h w)
+        X_test = np.zeros(self.X_test.shape)  # (b c h w)
+        for i in facies_ind:
+            X_train[:,i,:,:] = (X_train_argmax == i)
+            X_test[:,i,:,:] = (X_test_argmax == i)
+        self.X_train = X_train  # (b c h w)
+        self.X_test = X_test  # (b c h w)
 
         print('self.X_train.shape:', self.X_train.shape)
         print('self.X_test.shape:', self.X_test.shape)

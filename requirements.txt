@@ -8,8 +8,7 @@ PyYAML==6.0.1
 scikit_learn
 tqdm==4.66.1
 
--f https://download.pytorch.org/whl/torch_stable.html
-torch==1.13.1+cu117
+torch==1.13.1
 
 ema_pytorch==0.2.3
 lion_pytorch==0.1.2

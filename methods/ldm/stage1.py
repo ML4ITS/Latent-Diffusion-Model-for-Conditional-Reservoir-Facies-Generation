@@ -28,12 +28,7 @@ def train_stage1(config: dict,
                  train_data_loader: DataLoader,
                  test_data_loader: DataLoader,
                  gpu_idx: int,
-                 do_validate: bool,
                  ):
-    """
-    :param do_validate: if True, validation is conducted during training with a test dataset.
-    """
-
     # fit
     img_size = train_data_loader.dataset.X.shape[-1]
     module_vqvae = ModuleVQVAE(img_size, config, len(train_data_loader.dataset))
@@ -51,7 +46,7 @@ def train_stage1(config: dict,
                          check_val_every_n_epoch=config['trainer_params']['check_val_every_n_epoch'])
     trainer.fit(module_vqvae,
                 train_dataloaders=train_data_loader,
-                val_dataloaders=test_data_loader if do_validate else None
+                val_dataloaders=test_data_loader
                 )
 
     # additional log
@@ -76,5 +71,4 @@ train_data_loader, test_data_loader = [build_data_pipeline(batch_size, dataset_i
 # train
 train_stage1(config,
              train_data_loader, test_data_loader,
-             config['trainer_params']['gpu_idx'],
-             do_validate=True)
+             config['trainer_params']['gpu_idx'])

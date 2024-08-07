@@ -2,8 +2,10 @@ dataset:
   fname: 'facies_5000.npy'  #'dataset/facies'
   train_ratio: 0.8
   in_channels: 4
-  data_scaling: True
   n_categories: 4
+  target_input_dim:
+    - 128
+    - 128
   batch_sizes:
     stage1: 64
     stage2: 16
@@ -21,25 +23,25 @@ trainer_params:
   save_period_in_epoch: 10
   check_val_every_n_epoch: 10
 
+# encoder:
+#   dim: 64
+#   bottleneck_dim: 4    # small codebook_dim makes the diffusion modeling easier.
+#   n_resnet_blocks: 4
+#   downsampling_rate: 2  # the actual compression rate is `downsampling_rate ** 2` given both height and width.
+#   output_norm: True  # normalize `z` to be within [-1, 1]
 encoder:
-  dim: 64
+  init_dim: 128
+  hid_dim: 4  # bottleneck dim
+  downsample_rate: 2  # the actual compression rate is `downsampling_rate ** 2` given both height and width.
+  n_resnet_blocks: 8
   bottleneck_dim: 4    # small codebook_dim makes the diffusion modeling easier.
-  n_resnet_blocks: 4
-  downsampling_rate: 2  # the actual compression rate is `downsampling_rate ** 2` given both height and width.
   output_norm: True  # normalize `z` to be within [-1, 1]
 
-decoder:
-  dim: 64
-  n_resnet_blocks: 4
-
+# decoder:
+#   n_resnet_blocks: 4
 
 VQ-VAE:  # hyper-parameter choice is made based on the LDM paper
   codebook_size: 256
-  decay: 0.8
-  commitment_weight: 1.
-  emb_dropout: 0.
-  kmeans_init: False
-  threshold_ema_dead_code: 0
 
 diffusion:
   stage1_ckpt_fname: 'stage1.ckpt'  # saved file name for the model from stage 1

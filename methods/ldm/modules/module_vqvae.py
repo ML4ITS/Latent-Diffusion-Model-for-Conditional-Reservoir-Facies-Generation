@@ -5,6 +5,7 @@ import wandb
 from einops import rearrange
 from torch.optim.lr_scheduler import CosineAnnealingLR
 import pytorch_lightning as pl
+from matplotlib.colors import ListedColormap
 
 from methods.ldm.models.vq_enc_dec import VQVAEEncoder, VQVAEDecoder
 from methods.ldm.models.vq import VectorQuantize
@@ -43,19 +44,16 @@ class ModuleVQVAE(pl.LightningModule):
         self.config = config
         self.T_max = int(config['trainer_params']['max_epochs']['stage1'] * (np.ceil(n_train_samples / config['dataset']['batch_sizes']['stage1']) + 1))
 
-        dim = config['encoder']['dim']
-        bottleneck_dim = config['encoder']['bottleneck_dim']
         in_channels = config['dataset']['in_channels']
-        downsampling_rate = config['encoder']['downsampling_rate']
 
         # encoder
-        self.encoder = VQVAEEncoder(dim, bottleneck_dim, in_channels, downsampling_rate, config['encoder']['n_resnet_blocks'], config['encoder']['output_norm'])
-        self.decoder = VQVAEDecoder(dim, bottleneck_dim, in_channels, downsampling_rate, config['decoder']['n_resnet_blocks'], img_size)
-        self.vq_model = VectorQuantize(bottleneck_dim, **config['VQ-VAE'])
+        self.encoder = VQVAEEncoder(in_channels, **config['encoder'])
+        self.decoder = VQVAEDecoder(in_channels, **config['encoder'])
+        self.vq_model = VectorQuantize(config['encoder']['hid_dim'], **config['VQ-VAE'])
 
-        self.encoder_cond = VQVAEEncoder(dim, bottleneck_dim, in_channels+1, downsampling_rate, config['encoder']['n_resnet_blocks'], config['encoder']['output_norm'])
-        self.decoder_cond = VQVAEDecoder(dim, bottleneck_dim, in_channels+1, downsampling_rate, config['decoder']['n_resnet_blocks'], img_size)
-        self.vq_model_cond = VectorQuantize(bottleneck_dim, **config['VQ-VAE'])
+        self.encoder_cond = VQVAEEncoder(in_channels+1, **config['encoder'])
+        self.decoder_cond = VQVAEDecoder(in_channels+1, **config['encoder'])
+        self.vq_model_cond = VectorQuantize(config['encoder']['hid_dim'], **config['VQ-VAE'])
 
     def forward(self, x, kind):
         assert kind in ['x', 'x_cond']
@@ -90,13 +88,15 @@ class ModuleVQVAE(pl.LightningModule):
             b = np.random.randint(0, x.shape[0])
 
             fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+            custom_colors = ['C3', 'C2', 'C1', 'C0', '#D3D3D3']
+            cmap = ListedColormap(custom_colors)
             plt.suptitle(f'ep_{self.current_epoch}')
-            axes[0].imshow(x[b].argmax(dim=0), vmin=0, vmax=self.config['dataset']['n_categories'], cmap='Accent', interpolation='nearest')
+            axes[0].imshow(x[b].argmax(dim=0), vmin=0, vmax=self.config['dataset']['n_categories'], cmap=cmap, interpolation='nearest')
             axes[0].invert_yaxis()
             axes[0].set_xticks([])
             axes[0].set_yticks([])
 
-            axes[1].imshow(xhat[b].argmax(dim=0), vmin=0, vmax=self.config['dataset']['n_categories'], cmap='Accent', interpolation='nearest')
+            axes[1].imshow(xhat[b].argmax(dim=0), vmin=0, vmax=self.config['dataset']['n_categories'], cmap=cmap, interpolation='nearest')
             axes[1].invert_yaxis()
             axes[1].set_xticks([])
             axes[1].set_yticks([])
@@ -162,7 +162,7 @@ class ModuleVQVAE(pl.LightningModule):
                      'vq_loss_cond': vq_loss_cond,
                      'perplexity_cond': perplexity_cond,
                      }
-        loss_hist = {f'train/{k}': v for k, v in loss_hist.items()}
+        loss_hist = {f'val/{k}': v for k, v in loss_hist.items()}
         self.log_dict(loss_hist)
         return {'loss': loss}
 
