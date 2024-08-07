@@ -24,9 +24,7 @@ def diffusion_trainer_fn(initialize_wandb: bool) -> Trainer:
 
     # load the stage 1 module
     stage1_ckpt_fname = get_root_dir().joinpath('methods', 'ldm', 'saved_models', config['diffusion']['stage1_ckpt_fname'])
-    img_size = train_data_loader.dataset.X.shape[-1]
     module_vqvae = ModuleVQVAE.load_from_checkpoint(stage1_ckpt_fname,
-                                                    img_size=img_size,
                                                     config=config,
                                                     n_train_samples=len(train_data_loader.dataset))
     module_vqvae.to(config['trainer_params']['gpu_idx'])
@@ -41,13 +39,13 @@ def diffusion_trainer_fn(initialize_wandb: bool) -> Trainer:
         dim_mults=(1, 2, 4, 8),
         resnet_block_groups=4,
         self_condition=config['diffusion']['unet']['self_condition'],
-        z_size=module_vqvae.encoder.H_prime[0].item(),  # width or height of z
+        z_size=module_vqvae.encoder.H_prime.item(),  # width or height of z
         p_unconditional=config['diffusion']['p_unconditional'],
     ).to(config['trainer_params']['gpu_idx'])
 
     diffusion = GaussianDiffusion(
         model,
-        in_size=module_vqvae.encoder.H_prime[0].item(),  # width or height of z
+        in_size=module_vqvae.encoder.H_prime.item(),  # width or height of z
         timesteps=1000,  # number of steps
         sampling_timesteps=1000,
         # number of sampling timesteps (using ddim for faster inference [see citation for ddim paper])
@@ -68,13 +66,14 @@ def diffusion_trainer_fn(initialize_wandb: bool) -> Trainer:
         config,
         module_vqvae,
         train_batch_size=config['dataset']['batch_sizes']['stage2'],
-        train_lr=config['trainer_params']['LR']['stage2'],
-        train_num_steps=config['trainer_params']['max_num_steps']['stage2'],  # total training steps
+        train_lr=config['trainer_params']['stage2']['lr'],
+        train_num_steps=config['trainer_params']['stage2']['max_num_steps']['train'],
+        val_num_steps=config['trainer_params']['stage2']['max_num_steps']['val'],
         gradient_accumulate_every=2,  # gradient accumulation steps
         ema_decay=0.995,  # exponential moving average decay
         amp=False,  # turn on mixed precision
         fp16=False,
-        save_and_sample_every=config['diffusion']['save_and_sample_every'],
+        save_model_every=config['trainer_params']['stage2']['save_model_every'],
         num_samples=config['diffusion']['num_samples'],
         augment_horizontal_flip=False,
         preserv_loss_weight=config['diffusion']['preserv_loss_weight'],

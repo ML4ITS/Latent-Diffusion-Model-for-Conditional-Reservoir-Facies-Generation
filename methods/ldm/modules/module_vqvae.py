@@ -33,7 +33,6 @@ def quantize(z, vq_model, transpose_channel_length_axes=False, **kwargs):
 
 class ModuleVQVAE(pl.LightningModule):
     def __init__(self,
-                 img_size: int,
                  config: dict,
                  n_train_samples: int):
         """
@@ -42,18 +41,18 @@ class ModuleVQVAE(pl.LightningModule):
         """
         super().__init__()
         self.config = config
-        self.T_max = int(config['trainer_params']['max_epochs']['stage1'] * (np.ceil(n_train_samples / config['dataset']['batch_sizes']['stage1']) + 1))
+        self.T_max = int(config['trainer_params']['stage1']['max_epochs'] * (np.ceil(n_train_samples / config['dataset']['batch_sizes']['stage1']) + 1))
 
         in_channels = config['dataset']['in_channels']
 
         # encoder
         self.encoder = VQVAEEncoder(in_channels, **config['encoder'])
         self.decoder = VQVAEDecoder(in_channels, **config['encoder'])
-        self.vq_model = VectorQuantize(config['encoder']['hid_dim'], **config['VQ-VAE'])
+        # self.vq_model = VectorQuantize(config['encoder']['hid_dim'], **config['VQ-VAE'])
 
         self.encoder_cond = VQVAEEncoder(in_channels+1, **config['encoder'])
         self.decoder_cond = VQVAEDecoder(in_channels+1, **config['encoder'])
-        self.vq_model_cond = VectorQuantize(config['encoder']['hid_dim'], **config['VQ-VAE'])
+        # self.vq_model_cond = VectorQuantize(config['encoder']['hid_dim'], **config['VQ-VAE'])
 
     def forward(self, batch_idx, x, kind):
         assert kind in ['x', 'x_cond']
@@ -61,19 +60,19 @@ class ModuleVQVAE(pl.LightningModule):
         if kind == 'x':
             encoder = self.encoder
             decoder = self.decoder
-            vq_model = self.vq_model
+            # vq_model = self.vq_model
         elif kind == 'x_cond':
             encoder = self.encoder_cond
             decoder = self.decoder_cond
-            vq_model = self.vq_model_cond
+            # vq_model = self.vq_model_cond
         else:
             raise ValueError
 
         # forward
         z = encoder(x)  # (b d h' w')
-        z_q, indices, vq_loss, perplexity = quantize(z, vq_model)  # z_q: (b d h' w')
-        vq_loss = vq_loss['loss']
-        xhat = decoder(z_q)  # (b c h w)
+        # z_q, indices, vq_loss, perplexity = quantize(z, vq_model)  # z_q: (b d h' w')
+        # vq_loss = vq_loss['loss']
+        xhat = decoder(z)  # (b c h w)
 
         y_true = x.argmax(dim=1)  # (b h w)
         y_true = y_true.flatten()  # (b*h*w)
@@ -103,9 +102,9 @@ class ModuleVQVAE(pl.LightningModule):
 
             plt.tight_layout()
             if kind == 'x':
-                wandb.log({"x vs xhat (training)": wandb.Image(plt)})
+                wandb.log({"x vs xhat (val)": wandb.Image(plt)})
             elif kind == 'x_cond':
-                wandb.log({"x_cond vs xhat_cond (training)": wandb.Image(plt)})
+                wandb.log({"x_cond vs xhat_cond (val)": wandb.Image(plt)})
             plt.close()
 
         # plot histogram of z
@@ -122,14 +121,14 @@ class ModuleVQVAE(pl.LightningModule):
         #         wandb.log({"hist(z_cond)": wandb.Image(plt)})
         #     plt.close()
 
-        return categorical_recons_loss, vq_loss, perplexity
+        return categorical_recons_loss
 
     def training_step(self, batch, batch_idx):
         x, x_cond = batch
-        categorical_recons_loss, vq_loss, perplexity = self.forward(batch_idx, x, kind='x')
-        categorical_recons_loss_cond, vq_loss_cond, perplexity_cond = self.forward(batch_idx, x_cond, kind='x_cond')
-        loss = categorical_recons_loss + vq_loss
-        loss += categorical_recons_loss_cond + vq_loss_cond
+        categorical_recons_loss = self.forward(batch_idx, x, kind='x')
+        categorical_recons_loss_cond = self.forward(batch_idx, x_cond, kind='x_cond')
+        loss = categorical_recons_loss
+        loss += categorical_recons_loss_cond
 
         # lr scheduler
         sch = self.lr_schedulers()
@@ -137,11 +136,7 @@ class ModuleVQVAE(pl.LightningModule):
 
         # log
         loss_hist = {'categorical_recons_loss': categorical_recons_loss,
-                     'vq_loss': vq_loss,
-                     'perplexity': perplexity,
                      'categorical_recons_loss_cond': categorical_recons_loss_cond,
-                     'vq_loss_cond': vq_loss_cond,
-                     'perplexity_cond': perplexity_cond,
                      }
         loss_hist = {f'train/{k}': v for k, v in loss_hist.items()}
         self.log_dict(loss_hist)
@@ -149,24 +144,20 @@ class ModuleVQVAE(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, x_cond = batch
-        categorical_recons_loss, vq_loss, perplexity = self.forward(batch_idx, x, kind='x')
-        categorical_recons_loss_cond, vq_loss_cond, perplexity_cond = self.forward(batch_idx, x_cond, kind='x_cond')
-        loss = categorical_recons_loss + vq_loss
-        loss += categorical_recons_loss_cond + vq_loss_cond
+        categorical_recons_loss = self.forward(batch_idx, x, kind='x')
+        categorical_recons_loss_cond = self.forward(batch_idx, x_cond, kind='x_cond')
+        loss = categorical_recons_loss
+        loss += categorical_recons_loss_cond
 
         # log
         loss_hist = {'categorical_recons_loss': categorical_recons_loss,
-                     'vq_loss': vq_loss,
-                     'perplexity': perplexity,
                      'categorical_recons_loss_cond': categorical_recons_loss_cond,
-                     'vq_loss_cond': vq_loss_cond,
-                     'perplexity_cond': perplexity_cond,
                      }
         loss_hist = {f'val/{k}': v for k, v in loss_hist.items()}
         self.log_dict(loss_hist)
         return {'loss': loss}
 
     def configure_optimizers(self):
-        opt = torch.optim.AdamW([{'params': self.parameters(), 'lr': self.config['trainer_params']['LR']['stage1']},])
+        opt = torch.optim.AdamW([{'params': self.parameters(), 'lr': self.config['trainer_params']['stage1']['lr']},])
         return {'optimizer': opt, 'lr_scheduler': CosineAnnealingLR(opt, self.T_max)}
         # return {'optimizer': opt, 'lr_scheduler': linear_warmup_cosine_annealingLR(opt, max_steps=self.T_max)}

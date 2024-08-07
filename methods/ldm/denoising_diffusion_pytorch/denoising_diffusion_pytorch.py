@@ -30,6 +30,8 @@ from PIL import Image
 from tqdm.auto import tqdm
 from ema_pytorch import EMA
 
+from matplotlib.colors import ListedColormap
+
 from accelerate import Accelerator
 
 from denoising_diffusion_pytorch.version import __version__
@@ -38,6 +40,7 @@ from preprocessing.preprocess import DatasetImporter
 from preprocessing.preprocess import GeoDataset as Dataset
 from methods.ldm.modules.module_vqvae import quantize
 from methods.ldm.modules.module_vqvae import ModuleVQVAE
+from methods.ldm.utils import freeze
 
 # constants
 
@@ -941,19 +944,21 @@ def save_image(
     Xhat = Xhat[:, 0, :, :]  # (b h w)
 
     # color range
+    custom_colors = ['C3', 'C2', 'C1', 'C0', '#D3D3D3']
+    cmap = ListedColormap(custom_colors)
     sample_idx = 0
     for i in range(n_rows):
         for j in range(n_rows):
             x_cond = X_cond[sample_idx]  # (h w)
             cond_loc_ = cond_loc[sample_idx, 0, :, :]  # (h w)
 
-            axes[i, j].imshow(x_cond, interpolation='nearest', vmin=0, vmax=in_channels, cmap='Accent')
+            axes[i, j].imshow(x_cond, interpolation='nearest', vmin=0, vmax=in_channels, cmap=cmap)
             axes[i, j].set_xticks([])
             axes[i, j].set_yticks([])
 
             # xhat
             xhat = Xhat[sample_idx]  # (h w)
-            axes[i, n_rows+j].imshow(xhat, interpolation='nearest', vmin=0, vmax=in_channels, cmap='Accent')
+            axes[i, n_rows+j].imshow(xhat, interpolation='nearest', vmin=0, vmax=in_channels, cmap=cmap)
             axes[i, n_rows+j].set_xticks([])
             axes[i, n_rows+j].set_yticks([])
 
@@ -1024,10 +1029,11 @@ class Trainer(object):
         augment_horizontal_flip = True,
         train_lr = 1e-4,
         train_num_steps = 100000,
+        val_num_steps= 10000,
         ema_update_every = 10,
         ema_decay = 0.995,
         adam_betas = (0.9, 0.99),
-        save_and_sample_every = 1000,
+        save_model_every = 1000,
         num_samples = 25,
         saved_model_folder='./saved_models',
         results_folder = './results',
@@ -1052,23 +1058,22 @@ class Trainer(object):
         self.pretrained_encoder = module_vqvae.encoder
         self.pretrained_encoder_cond = module_vqvae.encoder_cond
         self.pretrained_decoder = module_vqvae.decoder
-        self.pretrained_vq = module_vqvae.vq_model
+        # self.pretrained_vq = module_vqvae.vq_model
 
-        self.pretrained_encoder.eval()
-        self.pretrained_encoder_cond.eval()
-        self.pretrained_decoder.train()
-        self.pretrained_vq.train()
+        freeze(self.pretrained_encoder)
+        freeze(self.pretrained_encoder_cond)
 
         self.model = diffusion_model
 
         assert has_int_squareroot(num_samples), 'number of samples must have an integer square root'
         self.num_samples = num_samples
-        self.save_and_sample_every = save_and_sample_every
+        self.save_model_every = save_model_every
 
         self.batch_size = train_batch_size
         self.gradient_accumulate_every = gradient_accumulate_every
 
         self.train_num_steps = train_num_steps
+        self.val_num_steps = val_num_steps
         self.in_size = diffusion_model.in_size
 
         # dataset and dataloader
@@ -1079,15 +1084,15 @@ class Trainer(object):
         # self.dl = self.accelerator.prepare(self.dl)
         # self.dl = cycle(self.dl)
         self.dl = train_data_loader
-        self.ds = test_data_loader.dataset
         self.dl = self.accelerator.prepare(self.dl)
         self.dl = cycle(self.dl)
+
+        self.ds = test_data_loader
 
         # optimizer
         optim_klass = Lion if use_lion else Adam
         # self.opt = optim_klass(diffusion_model.parameters(), lr = train_lr, betas = adam_betas)
         self.opt = optim_klass([{'params': diffusion_model.parameters(), 'lr': train_lr},
-                                {'params': self.pretrained_vq.parameters(), 'lr': train_lr},
                                 {'params': self.pretrained_decoder.parameters(), 'lr': train_lr},
                                 ],
                                betas=adam_betas)
@@ -1121,7 +1126,7 @@ class Trainer(object):
             'model': self.accelerator.get_state_dict(self.model),
             'encoder': self.pretrained_encoder.state_dict(),
             'encoder_cond': self.pretrained_encoder_cond.state_dict(),
-            'vq': self.pretrained_vq.state_dict(),
+            # 'vq': self.pretrained_vq.state_dict(),
             'decoder': self.pretrained_decoder.state_dict(),
             'opt': self.opt.state_dict(),
             'ema': self.ema.state_dict(),
@@ -1146,7 +1151,7 @@ class Trainer(object):
         self.ema.load_state_dict(data['ema'])
         self.pretrained_encoder.load_state_dict(data['encoder'])
         self.pretrained_encoder_cond.load_state_dict(data['encoder_cond'])
-        self.pretrained_vq.load_state_dict(data['vq'])
+        # self.pretrained_vq.load_state_dict(data['vq'])
         self.pretrained_decoder.load_state_dict(data['decoder'])
 
         self.pretrained_encoder.eval()
@@ -1158,75 +1163,75 @@ class Trainer(object):
         if exists(self.accelerator.scaler) and exists(data['scaler']):
             self.accelerator.scaler.load_state_dict(data['scaler'])
 
+    def step_fn(self, x, x_cond):
+        """
+        x, x_cond: (b c h w)
+        """
+        z = self.pretrained_encoder(x)  # (b d h' w')
+        z_cond = self.pretrained_encoder_cond(x_cond)  # (b c h' w')
+
+        with self.accelerator.autocast():
+            diff_loss, z_hat = self.model(z, z_cond, return_pred=True)  # diffusion loss
+
+            # preservation loss
+            x_hat = self.pretrained_decoder(z_hat)  # (b c h w)
+            cond_loc = (x_cond[:,[-1],:,:] != 1)  # (b 1 h w); the last channel corresponds to masking
+            c = x_hat.shape[1]
+            cond_loc_ = rearrange(repeat(cond_loc, 'b 1 h w -> b c h w', c=c), 'b c h w -> b h w c')
+            xhat_cond = rearrange(rearrange(x_hat, 'b c h w -> b h w c')[cond_loc_], '(n c) -> n c', c=c)
+            x_cond_argmax = x_cond.argmax(dim=1, keepdim=True)[cond_loc]
+            preserv_loss = F.cross_entropy(input=xhat_cond, target=x_cond_argmax)
+
+            # reconstruction loss
+            y_true = x.argmax(dim=1)  # (b h w)
+            y_true = y_true.flatten()  # (bhw)
+            y_pred = rearrange(x_hat, 'b c h w -> (b h w) c')  # (bhw c)
+            categorical_recons_loss = F.cross_entropy(y_pred, y_true)
+
+            # (a), (c)
+            # `preserv_loss`: preserves the conditional information in generated samples.
+            # `(vq_loss['loss'] + categorical_recons_loss)` preserves the ability of the decoder.
+            loss = diff_loss + \
+                    self.preserv_loss_weight * preserv_loss + categorical_recons_loss
+
+            # (b)
+            # loss = diff_loss + \
+            #        (vq_loss['loss'] + categorical_recons_loss)
+        return loss, (diff_loss, preserv_loss, categorical_recons_loss)
+
     def train(self):
+
         accelerator = self.accelerator
         device = torch.device(self.config['trainer_params']['gpu_idx'])
 
         with tqdm(initial = self.step, total = self.train_num_steps, disable = not accelerator.is_main_process) as pbar:
 
             while self.step < self.train_num_steps:
-
+                
+                # TRAINING
+                self.pretrained_encoder.eval()
+                self.pretrained_encoder_cond.eval()
+                self.pretrained_decoder.train()
+                self.model.train()
+                
                 total_loss = 0.
-
                 for _ in range(self.gradient_accumulate_every):
                     x, x_cond = next(self.dl)  # I assume (b c h w)
                     x, x_cond = x.to(device), x_cond.to(device)
 
-                    z = self.pretrained_encoder(x)  # (b d h' w')
-                    z_cond = self.pretrained_encoder_cond(x_cond)  # (b c h' w')
+                    loss, (diff_loss, preserv_loss, categorical_recons_loss) = self.step_fn(x, x_cond)
 
-                    with self.accelerator.autocast():
-                        # diffusion loss
-                        diff_loss, z_hat = self.model(z, z_cond, return_pred=True)
-
-                        # preservation loss
-                        self.pretrained_vq.train()
-                        self.pretrained_decoder.train()
-
-                        zq_hat, _, vq_loss, _ = quantize(z_hat, self.pretrained_vq)
-                        x_hat = self.pretrained_decoder(zq_hat)  # (b c h w)
-                        cond_loc = (x_cond[:,[-1],:,:] != 1)  # (b 1 h w); the last channel corresponds to masking
-                        c = x_hat.shape[1]
-                        cond_loc_ = rearrange(repeat(cond_loc, 'b 1 h w -> b c h w', c=c), 'b c h w -> b h w c')
-                        xhat_cond = rearrange(rearrange(x_hat, 'b c h w -> b h w c')[cond_loc_], '(n c) -> n c', c=c)
-                        x_cond_argmax = x_cond.argmax(dim=1, keepdim=True)[cond_loc]
-                        preserv_loss = F.cross_entropy(input=xhat_cond, target=x_cond_argmax)
-
-                        # fig, axes = plt.subplots(1, 2)
-                        # b = 0
-                        # axes[0].imshow(x_cond_argmax.detach().cpu().numpy()[b])
-                        # axes[1].imshow(xhat_cond.argmax(1).detach().cpu().numpy()[b])
-                        # plt.show()
-
-                        # reconstruction loss
-                        y_true = x.argmax(dim=1)  # (b h w)
-                        y_true = y_true.flatten()  # (bhw)
-                        y_pred = rearrange(x_hat, 'b c h w -> (b h w) c')  # (bhw c)
-                        categorical_recons_loss = F.cross_entropy(y_pred, y_true)
-
-                        # (a), (c)
-                        # `preserv_loss`: preserves the conditional information in generated samples.
-                        # `(vq_loss['loss'] + categorical_recons_loss)` preserves the ability of the decoder.
-                        loss = diff_loss + \
-                               self.preserv_loss_weight * preserv_loss + \
-                               (vq_loss['loss'] + categorical_recons_loss)
-
-                        # (b)
-                        # loss = diff_loss + \
-                        #        (vq_loss['loss'] + categorical_recons_loss)
-
-                        loss = loss / self.gradient_accumulate_every
-                        total_loss += loss.item()
+                    loss = loss / self.gradient_accumulate_every
+                    total_loss += loss.item()
 
                     self.accelerator.backward(loss)
 
                 accelerator.clip_grad_norm_(self.model.parameters(), 1.0)
                 pbar.set_description(f'loss: {total_loss:.4f}')
-                wandb.log({'loss': loss,
-                           'diff_loss': diff_loss,
-                           'preserv_loss': preserv_loss,
-                           'vq_loss': vq_loss['loss'],
-                           'categorical_recons_loss': categorical_recons_loss,
+                wandb.log({'train/loss': loss,
+                           'train/diff_loss': diff_loss,
+                           'train/preserv_loss': preserv_loss,
+                           'train/categorical_recons_loss': categorical_recons_loss,
                            })
 
                 accelerator.wait_for_everyone()
@@ -1237,42 +1242,64 @@ class Trainer(object):
                 accelerator.wait_for_everyone()
 
                 self.step += 1
+
+                # VALIDATION: loss
+                self.pretrained_encoder.eval()
+                self.pretrained_encoder_cond.eval()
+                self.pretrained_decoder.eval()
+                self.model.eval()
+                self.ema.ema_model.eval()
+
+                if self.step % self.val_num_steps == 0:
+                    x, x_cond = next(iter(self.ds))  # I assume (b c h w)
+                    x, x_cond = x.to(device), x_cond.to(device)
+
+                    with torch.no_grad():
+                        loss, (diff_loss, preserv_loss, categorical_recons_loss) = self.step_fn(x, x_cond)
+                    
+                    wandb.log({'val/loss': loss,
+                               'val/diff_loss': diff_loss,
+                               'val/preserv_loss': preserv_loss,
+                               'val/categorical_recons_loss': categorical_recons_loss,
+                               })
+
+                # VALIDATION: sampling
                 if accelerator.is_main_process:
                     self.ema.to(device)
                     self.ema.update()
 
-                    if self.step != 0 and self.step % self.save_and_sample_every == 0:
-                        # produce multiple synthetic samples
-                        self.ema.ema_model.eval()
-                        self.pretrained_vq.eval()
-                        self.pretrained_decoder.eval()
-
+                    # sampling for validation
+                    if self.step != 0 and self.step % self.val_num_steps == 0:
+                        
                         with torch.no_grad():
                             # z_cond
                             X_cond = []
                             for _ in range(self.num_samples):
-                                i = np.random.choice(len(self.ds))
-                                x, x_cond = self.ds[i]  # (c h w)
+                                i = np.random.choice(len(self.ds.dataset))
+                                x, x_cond = self.ds.dataset[i]  # (c h w)
                                 X_cond.append(x_cond.numpy())
                             X_cond = torch.from_numpy(np.array(X_cond))  # (b c h w); b == num_samples
                             z_cond = self.pretrained_encoder_cond(X_cond.to(device))  # (b c h' w')
 
-                            milestone = self.step // self.save_and_sample_every
                             batches = num_to_groups(self.num_samples, self.batch_size)
                             all_zs_list = list(map(lambda n: self.ema.ema_model.sample(z_cond, batch_size=n), batches))
 
                             all_zs = torch.cat(all_zs_list, dim = 0)  # (b d h' w')
 
                             # apply vq
-                            all_zqs, _, _, _ = quantize(all_zs, self.pretrained_vq)  # z_q: (b d h' w')
+                            # all_zqs, _, _, _ = quantize(all_zs, self.pretrained_vq)  # z_q: (b d h' w')
 
                             # apply decoder
-                            all_images = self.pretrained_decoder(all_zqs)  # (b c h w)
+                            all_images = self.pretrained_decoder(all_zs)  # (b c h w)
                             all_images = all_images.cpu().detach()
                             all_images = all_images.argmax(dim=1)[:, None, :, :].float()  # (b 1 h w)
 
-                        # save
-                        save_image(X_cond, all_images, str(self.results_folder / f'sample-{milestone}.png'), self.config['dataset']['in_channels'], self.step, True)
+                        # save image
+                        save_image(X_cond, all_images, str(self.results_folder / f'sample-{self.step}.png'), self.config['dataset']['in_channels'], self.step, True)
+                        
+                    # save model
+                    if self.step != 0 and self.step % self.save_model_every == 0:
+                        milestone = self.step // self.save_model_every
                         self.save(milestone)  # save model
 
                         # del X_cond, z_cond, all_zs, all_zqs, all_images

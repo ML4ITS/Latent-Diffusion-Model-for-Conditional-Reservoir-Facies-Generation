@@ -11,17 +11,34 @@ dataset:
     stage2: 16
   num_workers: 0
 
+# trainer_params:
+#   gpu_idx: 0
+#   LR:  # learning rate
+#     stage1: 0.001
+#     stage2: 0.0001
+#   max_epochs:
+#     stage1: 200
+#   max_num_steps:  # it uses steps instead of epochs due to the DDPM implementation
+#     stage2: 
+#       train: 14000
+#       val: 140
+#   save_period_in_epoch: 10
+#   check_val_every_n_epoch: 1
+
 trainer_params:
   gpu_idx: 0
-  LR:  # learning rate
-    stage1: 0.001
-    stage2: 0.0001
-  max_epochs:
-    stage1: 200
-  max_num_steps:  # it uses steps instead of epochs due to the DDPM implementation
-    stage2: 14000
-  save_period_in_epoch: 10
-  check_val_every_n_epoch: 1
+  stage1:
+    lr: 0.001
+    max_epochs: 100
+    check_val_every_n_epoch: 1
+    save_period_in_epoch: 10
+  stage2:
+    lr: 0.0001
+    max_num_steps: 
+      train: 20000
+      val: 1000
+    save_model_every: 1000
+    
 
 # encoder:
 #   dim: 64
@@ -51,7 +68,6 @@ diffusion:
   p_unconditional: 0.1  # rate for unconditional generation during training
   classifier_free_guidance_scale: 1.0
   preserv_loss_weight: 1
-  save_and_sample_every: 1000  # {100, 1000}
   num_samples: 9
 
 sampling:

@@ -37,13 +37,13 @@ def train_stage1(config: dict,
                                save_dir=get_root_dir().joinpath('methods', 'ldm', 'saved_models'))
     checkpoint_callback = ModelCheckpoint(dirpath=get_root_dir().joinpath('methods', 'ldm', 'saved_models'),
                                           filename=f'stage1',
-                                          every_n_epochs=config['trainer_params']['save_period_in_epoch'])
+                                          every_n_epochs=config['trainer_params']['stage1']['save_period_in_epoch'])
     trainer = pl.Trainer(logger=wandb_logger,
                          callbacks=[LearningRateMonitor(logging_interval='epoch'), checkpoint_callback],
-                         max_epochs=config['trainer_params']['max_epochs']['stage1'],
+                         max_epochs=config['trainer_params']['stage1']['max_epochs'],
                          devices=[gpu_idx,],
                          accelerator='gpu',
-                         check_val_every_n_epoch=config['trainer_params']['check_val_every_n_epoch'])
+                         check_val_every_n_epoch=config['trainer_params']['stage1']['check_val_every_n_epoch'])
     trainer.fit(module_vqvae,
                 train_dataloaders=train_data_loader,
                 val_dataloaders=test_data_loader
