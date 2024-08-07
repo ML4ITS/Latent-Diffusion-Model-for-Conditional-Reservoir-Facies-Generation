@@ -159,7 +159,8 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-dataset/facies_5000.npy
+dataset/*
+!__init__.py
 .idea/
 wandb/
 methods/unet_gan/saved_models/
