@@ -168,4 +168,5 @@ class ModuleVQVAE(pl.LightningModule):
 
     def configure_optimizers(self):
         opt = torch.optim.AdamW([{'params': self.parameters(), 'lr': self.config['trainer_params']['LR']['stage1']},])
-        return {'optimizer': opt, 'lr_scheduler': linear_warmup_cosine_annealingLR(opt, max_steps=self.T_max)}
+        return {'optimizer': opt, 'lr_scheduler': CosineAnnealingLR(opt, self.T_max)}
+        # return {'optimizer': opt, 'lr_scheduler': linear_warmup_cosine_annealingLR(opt, max_steps=self.T_max)}
