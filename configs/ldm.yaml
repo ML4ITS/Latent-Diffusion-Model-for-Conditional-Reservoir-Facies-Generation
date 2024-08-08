@@ -11,19 +11,6 @@ dataset:
     stage2: 16
   num_workers: 0
 
-# trainer_params:
-#   gpu_idx: 0
-#   LR:  # learning rate
-#     stage1: 0.001
-#     stage2: 0.0001
-#   max_epochs:
-#     stage1: 200
-#   max_num_steps:  # it uses steps instead of epochs due to the DDPM implementation
-#     stage2: 
-#       train: 14000
-#       val: 140
-#   save_period_in_epoch: 10
-#   check_val_every_n_epoch: 1
 
 trainer_params:
   gpu_idx: 0
@@ -35,8 +22,9 @@ trainer_params:
   stage2:
     lr: 0.0001
     max_num_steps: 
-      train: 20000
-      val: 1000
+      train: 40000
+      val_loss: 100
+      val_sampling: 1000
     save_model_every: 1000
     
 
@@ -68,7 +56,5 @@ diffusion:
   p_unconditional: 0.1  # rate for unconditional generation during training
   classifier_free_guidance_scale: 1.0
   preserv_loss_weight: 1
-  num_samples: 9
-
-sampling:
-  trained_stage2_module_fname: 'stage2_a-14.ckpt'  # within `methods/ldm/saved_models/`
+  timesteps: 1000
+  num_val_samples: 9

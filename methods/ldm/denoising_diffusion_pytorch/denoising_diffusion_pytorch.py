@@ -944,8 +944,7 @@ def save_image(
     Xhat = Xhat[:, 0, :, :]  # (b h w)
 
     # color range
-    custom_colors = ['C3', 'C2', 'C1', 'C0', '#D3D3D3']
-    cmap = ListedColormap(custom_colors)
+    cmap = ListedColormap(['C3', 'C2', 'C1', 'C0', '#D3D3D3'])
     sample_idx = 0
     for i in range(n_rows):
         for j in range(n_rows):
@@ -994,7 +993,7 @@ def save_image_unconditional(
     n_samples = Xhat.shape[0]
     n_rows = int(np.ceil(np.sqrt(n_samples)))
     fig, axes = plt.subplots(nrows=n_rows, ncols=n_rows * 1, figsize=(12*1, 12))
-    # axes = axes.flatten()
+    cmap = ListedColormap(['C3', 'C2', 'C1', 'C0', '#D3D3D3'])
 
     Xhat = np.flip(Xhat.numpy(), axis=2)  # (b 1 h w)
     Xhat = Xhat.squeeze()  # (b h w)
@@ -1006,7 +1005,7 @@ def save_image_unconditional(
         for j in range(n_rows):
             # xhat
             xhat = Xhat[sample_idx]  # (h w)
-            axes[i, j].imshow(xhat, interpolation='nearest', vmin=0, vmax=in_channels, cmap='Accent')
+            axes[i, j].imshow(xhat, interpolation='nearest', vmin=0, vmax=in_channels, cmap=cmap)
             axes[i, j].set_xticks([])
             axes[i, j].set_yticks([])
 
@@ -1029,7 +1028,8 @@ class Trainer(object):
         augment_horizontal_flip = True,
         train_lr = 1e-4,
         train_num_steps = 100000,
-        val_num_steps= 10000,
+        val_num_steps_for_loss= 10000,
+        val_num_steps_for_sampling= 10000,
         ema_update_every = 10,
         ema_decay = 0.995,
         adam_betas = (0.9, 0.99),
@@ -1074,7 +1074,8 @@ class Trainer(object):
         self.gradient_accumulate_every = gradient_accumulate_every
 
         self.train_num_steps = train_num_steps
-        self.val_num_steps = val_num_steps
+        self.val_num_steps_for_loss = val_num_steps_for_loss
+        self.val_num_steps_for_sampling = val_num_steps_for_sampling
         self.in_size = diffusion_model.in_size
 
         # dataset and dataloader
@@ -1252,7 +1253,7 @@ class Trainer(object):
                 self.model.eval()
                 self.ema.ema_model.eval()
 
-                if self.step % self.val_num_steps == 0:
+                if self.step % self.val_num_steps_for_loss == 0:
                     x, x_cond = next(iter(self.ds))  # I assume (b c h w)
                     x, x_cond = x.to(device), x_cond.to(device)
 
@@ -1271,7 +1272,7 @@ class Trainer(object):
                     self.ema.update()
 
                     # sampling for validation
-                    if self.step != 0 and self.step % self.val_num_steps == 0:
+                    if self.step != 0 and self.step % self.val_num_steps_for_sampling == 0:
                         
                         with torch.no_grad():
                             # z_cond

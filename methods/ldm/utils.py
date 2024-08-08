@@ -46,8 +46,8 @@ def diffusion_trainer_fn(initialize_wandb: bool) -> Trainer:
     diffusion = GaussianDiffusion(
         model,
         in_size=module_vqvae.encoder.H_prime.item(),  # width or height of z
-        timesteps=1000,  # number of steps
-        sampling_timesteps=1000,
+        timesteps=config['diffusion']['timesteps'],  # number of steps
+        sampling_timesteps=None,  # if `sampling_timesteps < timesteps`, DDIM is used.
         # number of sampling timesteps (using ddim for faster inference [see citation for ddim paper])
         loss_type='l1',  # L1 or L2
         objective='pred_x0',
@@ -68,13 +68,14 @@ def diffusion_trainer_fn(initialize_wandb: bool) -> Trainer:
         train_batch_size=config['dataset']['batch_sizes']['stage2'],
         train_lr=config['trainer_params']['stage2']['lr'],
         train_num_steps=config['trainer_params']['stage2']['max_num_steps']['train'],
-        val_num_steps=config['trainer_params']['stage2']['max_num_steps']['val'],
+        val_num_steps_for_loss=config['trainer_params']['stage2']['max_num_steps']['val_loss'],
+        val_num_steps_for_sampling=config['trainer_params']['stage2']['max_num_steps']['val_sampling'],
         gradient_accumulate_every=2,  # gradient accumulation steps
         ema_decay=0.995,  # exponential moving average decay
         amp=False,  # turn on mixed precision
         fp16=False,
         save_model_every=config['trainer_params']['stage2']['save_model_every'],
-        num_samples=config['diffusion']['num_samples'],
+        num_samples=config['diffusion']['num_val_samples'],
         augment_horizontal_flip=False,
         preserv_loss_weight=config['diffusion']['preserv_loss_weight'],
         saved_model_folder=get_root_dir().joinpath('methods', 'ldm', 'saved_models'),

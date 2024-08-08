@@ -171,5 +171,6 @@ methods/ldm/results/*
 methods/ldm/lightning_logs/*
 
 ***/*.ipynb
-!sample_ldm.ipynb
-!sample_gan.ipynb
+!simple_sample_ldm.ipynb
+!simple_sample_gan.ipynb
+!analytic_sample_ldm.ipynb

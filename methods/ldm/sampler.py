@@ -6,24 +6,24 @@ from methods.ldm.modules.module_vqvae import quantize
 
 
 class LDMSampler(object):
-    def __init__(self):
+    def __init__(self, stage2_ckpt:str):
         # setup the trainer
-        self.config = load_yaml_param_settings(get_root_dir().joinpath('configs', 'ldm.yaml'))
+        # self.config = load_yaml_param_settings(get_root_dir().joinpath('configs', 'ldm.yaml'))
         self.trainer = diffusion_trainer_fn(initialize_wandb=False)
 
         # load the pretrained LDM
-        fname = self.config['sampling']['trained_stage2_module_fname']
-        self.trainer.load(ckpt_fname=fname)
+        # fname = self.config['sampling']['trained_stage2_module_fname']
+        self.trainer.load(ckpt_fname=stage2_ckpt)
 
         # models
         self.encoder_cond = self.trainer.pretrained_encoder_cond
-        self.vq = self.trainer.pretrained_vq
+        # self.vq = self.trainer.pretrained_vq
         self.decoder = self.trainer.pretrained_decoder
         self.generator = self.trainer.ema.ema_model
 
         # inference mode
         self.encoder_cond.eval()
-        self.vq.eval()
+        # self.vq.eval()
         self.decoder.eval()
         self.generator.eval()
         
@@ -40,11 +40,11 @@ class LDMSampler(object):
         """
         z_gen = self.generator.sample(z_cond=None, batch_size=n_samples)  # (n_samples c h w) = (b d h w)
 
-        # apply vq
-        zq_gen, _, _, _ = quantize(z_gen, self.vq)  # (b d h w)
+        # # apply vq
+        # zq_gen, _, _, _ = quantize(z_gen, self.vq)  # (b d h w)
 
         # apply decoder
-        x_gen = self.decoder(zq_gen)  # (b c h w)
+        x_gen = self.decoder(z_gen)  # (b c h w)
         return x_gen
     
     @torch.no_grad()
@@ -65,8 +65,8 @@ class LDMSampler(object):
         z_gen = self.generator.sample(z_cond, batch_size=z_cond.shape[0])  # (b d h w)
 
         # apply vq
-        zq_gen, _, _, _ = quantize(z_gen, self.vq)  # (b d h w)
+        # zq_gen, _, _, _ = quantize(z_gen, self.vq)  # (b d h w)
 
         # apply decoder
-        x_gen = self.decoder(zq_gen)  # (b c h w)
+        x_gen = self.decoder(z_gen)  # (b c h w)
         return x_gen
