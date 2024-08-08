@@ -1062,6 +1062,7 @@ class Trainer(object):
 
         freeze(self.pretrained_encoder)
         freeze(self.pretrained_encoder_cond)
+        freeze(self.pretrained_decoder)
 
         self.model = diffusion_model
 
@@ -1093,7 +1094,7 @@ class Trainer(object):
         optim_klass = Lion if use_lion else Adam
         # self.opt = optim_klass(diffusion_model.parameters(), lr = train_lr, betas = adam_betas)
         self.opt = optim_klass([{'params': diffusion_model.parameters(), 'lr': train_lr},
-                                {'params': self.pretrained_decoder.parameters(), 'lr': train_lr},
+                                # {'params': self.pretrained_decoder.parameters(), 'lr': train_lr},
                                 ],
                                betas=adam_betas)
 
@@ -1183,10 +1184,11 @@ class Trainer(object):
             preserv_loss = F.cross_entropy(input=xhat_cond, target=x_cond_argmax)
 
             # reconstruction loss
-            y_true = x.argmax(dim=1)  # (b h w)
-            y_true = y_true.flatten()  # (bhw)
-            y_pred = rearrange(x_hat, 'b c h w -> (b h w) c')  # (bhw c)
-            categorical_recons_loss = F.cross_entropy(y_pred, y_true)
+            # y_true = x.argmax(dim=1)  # (b h w)
+            # y_true = y_true.flatten()  # (bhw)
+            # y_pred = rearrange(x_hat, 'b c h w -> (b h w) c')  # (bhw c)
+            # categorical_recons_loss = F.cross_entropy(y_pred, y_true)
+            categorical_recons_loss = 0.
 
             # (a), (c)
             # `preserv_loss`: preserves the conditional information in generated samples.
@@ -1211,7 +1213,7 @@ class Trainer(object):
                 # TRAINING
                 self.pretrained_encoder.eval()
                 self.pretrained_encoder_cond.eval()
-                self.pretrained_decoder.train()
+                self.pretrained_decoder.eval()
                 self.model.train()
                 
                 total_loss = 0.
