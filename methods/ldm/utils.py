@@ -24,9 +24,7 @@ def diffusion_trainer_fn(initialize_wandb: bool) -> Trainer:
 
     # load the stage 1 module
     stage1_ckpt_fname = get_root_dir().joinpath('methods', 'ldm', 'saved_models', config['diffusion']['stage1_ckpt_fname'])
-    module_vqvae = ModuleVQVAE.load_from_checkpoint(stage1_ckpt_fname,
-                                                    config=config,
-                                                    n_train_samples=len(train_data_loader.dataset))
+    module_vqvae = ModuleVQVAE.load_from_checkpoint(stage1_ckpt_fname, config=config)
     module_vqvae.to(config['trainer_params']['gpu_idx'])
     module_vqvae.eval()
     freeze(module_vqvae.encoder)

@@ -16,7 +16,9 @@ trainer_params:
   gpu_idx: 0
   stage1:
     lr: 0.001
-    max_epochs: 100
+    max_num_steps:
+      train: 3000
+      val: 60
     check_val_every_n_epoch: 1
     save_period_in_epoch: 10
   stage2:

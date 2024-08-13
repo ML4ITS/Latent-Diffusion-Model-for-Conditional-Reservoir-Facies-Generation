@@ -32,16 +32,13 @@ def quantize(z, vq_model, transpose_channel_length_axes=False, **kwargs):
 
 
 class ModuleVQVAE(pl.LightningModule):
-    def __init__(self,
-                 config: dict,
-                 n_train_samples: int):
+    def __init__(self, config: dict):
         """
         :param config: configs/config.yaml
         :param n_train_samples: number of training samples
         """
         super().__init__()
         self.config = config
-        self.T_max = int(config['trainer_params']['stage1']['max_epochs'] * (np.ceil(n_train_samples / config['dataset']['batch_sizes']['stage1']) + 1))
 
         in_channels = config['dataset']['in_channels']
 
@@ -159,5 +156,6 @@ class ModuleVQVAE(pl.LightningModule):
 
     def configure_optimizers(self):
         opt = torch.optim.AdamW([{'params': self.parameters(), 'lr': self.config['trainer_params']['stage1']['lr']},])
-        return {'optimizer': opt, 'lr_scheduler': CosineAnnealingLR(opt, self.T_max)}
+        T_max = self.config['trainer_params']['stage1']['max_num_steps']['train']
+        return {'optimizer': opt, 'lr_scheduler': CosineAnnealingLR(opt, T_max)}
         # return {'optimizer': opt, 'lr_scheduler': linear_warmup_cosine_annealingLR(opt, max_steps=self.T_max)}

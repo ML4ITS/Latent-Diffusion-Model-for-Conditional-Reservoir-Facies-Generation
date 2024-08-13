@@ -17,21 +17,13 @@ from preprocessing.preprocess import DatasetImporter
 from preprocessing.data_pipeline import build_data_pipeline
 
 
-# def load_args():
-#     parser = ArgumentParser()
-#     parser.add_argument('--config', type=str, help="Path to the config data file.",
-#                         default=get_root_dir().joinpath('configs', 'ldm.yaml'))
-#     return parser.parse_args()
-
-
 def train_stage1(config: dict,
                  train_data_loader: DataLoader,
                  test_data_loader: DataLoader,
                  gpu_idx: int,
                  ):
     # fit
-    img_size = train_data_loader.dataset.X.shape[-1]
-    module_vqvae = ModuleVQVAE(img_size, config, len(train_data_loader.dataset))
+    module_vqvae = ModuleVQVAE(config)
 
     wandb_logger = WandbLogger(project='LDM for facies generation; stage1', name=None, config=config,
                                save_dir=get_root_dir().joinpath('methods', 'ldm', 'saved_models'))
@@ -40,10 +32,12 @@ def train_stage1(config: dict,
                                           every_n_epochs=config['trainer_params']['stage1']['save_period_in_epoch'])
     trainer = pl.Trainer(logger=wandb_logger,
                          callbacks=[LearningRateMonitor(logging_interval='epoch'), checkpoint_callback],
-                         max_epochs=config['trainer_params']['stage1']['max_epochs'],
+                         max_steps=config['trainer_params']['stage1']['max_num_steps']['train'],
                          devices=[gpu_idx,],
                          accelerator='gpu',
-                         check_val_every_n_epoch=config['trainer_params']['stage1']['check_val_every_n_epoch'])
+                         val_check_interval=config['trainer_params']['stage1']['max_num_steps']['val'],
+                         check_val_every_n_epoch=None,
+                         )
     trainer.fit(module_vqvae,
                 train_dataloaders=train_data_loader,
                 val_dataloaders=test_data_loader
