@@ -17,10 +17,12 @@ import torch.nn.functional as F
 import torch
 from torch.utils.data import DataLoader
 from einops import rearrange
+from matplotlib.colors import ListedColormap
 
 from methods.unet_gan.models import GeneratorUNet, Discriminator, weights_init_normal
 from methods.unet_gan.utils import preprocess_data
 from preprocessing.preprocess import DatasetImporter, GeoDataset
+from preprocessing.data_pipeline import build_data_pipeline
 from methods.utils import get_root_dir, load_yaml_param_settings
 
 
@@ -63,12 +65,16 @@ optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=config['lr'], beta
 
 # Configure dataloaders
 fname = get_root_dir().joinpath('dataset', 'facies_5000.npy')
-dataset_importer = DatasetImporter(fname,
-                                   train_ratio=config['train_ratio'],
-                                   data_scaling=True,
-                                   n_categories=4)
-train_dataloader = DataLoader(GeoDataset("train", dataset_importer), batch_size=config['batch_size'], num_workers=config['n_cpu'], shuffle=True)
-test_dataloader = DataLoader(GeoDataset("test", dataset_importer), batch_size=config['batch_size'], num_workers=0, shuffle=True)
+# dataset_importer = DatasetImporter(fname,
+#                                    train_ratio=config['train_ratio'],
+#                                    data_scaling=True,
+#                                    n_categories=4)
+# train_dataloader = DataLoader(GeoDataset("train", dataset_importer), batch_size=config['batch_size'], num_workers=config['n_cpu'], shuffle=True)
+# test_dataloader = DataLoader(GeoDataset("test", dataset_importer), batch_size=config['batch_size'], num_workers=0, shuffle=True)
+dataset_importer = DatasetImporter(**config['dataset'])
+batch_size = config['batch_size']
+train_dataloader, test_dataloader = [build_data_pipeline(batch_size, dataset_importer, config, kind) for kind in ['train', 'test']]
+
 
 
 # Tensor type
@@ -202,15 +208,18 @@ for epoch in range(0, config['n_epochs']+1):
             # plot
             b = 0
             n_subfigs = 5
+            cmap = ListedColormap(['C3', 'C2', 'C1', 'C0', '#D3D3D3'])
             fig, axes = plt.subplots(1, n_subfigs, figsize=(3*n_subfigs, 3))
-            axes[0].imshow(x[b,0], vmin=0, vmax=config['n_categories'], cmap='Accent', interpolation='nearest')
-            axes[1].imshow(x_cond[b, 0], vmin=0, vmax=config['n_categories'], cmap='Accent', interpolation='nearest')
-            axes[2].imshow(fake_x[b, 0], vmin=0, vmax=config['n_categories'], cmap='Accent', interpolation='nearest')
-            axes[3].imshow(discrete_fake_x[b, 0], vmin=0, vmax=config['n_categories'], cmap='Accent', interpolation='nearest')
+            axes[0].imshow(x[b,0], vmin=0, vmax=config['n_categories'], cmap=cmap, interpolation='nearest')
+            axes[1].imshow(x_cond[b, 0], vmin=0, vmax=config['n_categories'], cmap=cmap, interpolation='nearest')
+            axes[2].imshow(fake_x[b, 0], vmin=0, vmax=config['n_categories'], cmap=cmap, interpolation='nearest')
+            axes[3].imshow(discrete_fake_x[b, 0], vmin=0, vmax=config['n_categories'], cmap=cmap, interpolation='nearest')
             axes[4].imshow(preservation_error_map[b, 0], vmin=0, vmax=1, cmap='Greys', interpolation='nearest')
             for ax in axes:
                 ax.invert_yaxis()
-            plt.suptitle(f'epoch:{epoch}')
+                ax.set_xticks([])
+                ax.set_yticks([])
+            plt.suptitle(f'epoch-{epoch}')
             wandb.log({'sample on x_cond_test': wandb.Image(plt)})
             plt.close()
 

@@ -1,4 +1,13 @@
-train_ratio: 0.8
+# train_ratio: 0.8
+dataset:
+  fname: 'facies_5000.npy'  #'dataset/facies'
+  train_ratio: 0.8
+  in_channels: 4
+  n_categories: 4
+  target_input_dim:
+    - 128
+    - 128
+  num_workers: 0
 
 # train
 n_categories: 4  # number of facies types.
