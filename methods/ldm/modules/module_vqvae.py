@@ -77,7 +77,6 @@ class ModuleVQVAE(pl.LightningModule):
         categorical_recons_loss = torch.nn.functional.cross_entropy(y_pred, y_true)
 
         # plot `x` and `xhat`
-        r = np.random.rand()
         if not self.training and (batch_idx == 0):
             x = x.cpu()
             xhat = xhat.detach().cpu()
@@ -86,7 +85,7 @@ class ModuleVQVAE(pl.LightningModule):
             fig, axes = plt.subplots(1, 2, figsize=(10, 5))
             custom_colors = ['C3', 'C2', 'C1', 'C0', '#D3D3D3']
             cmap = ListedColormap(custom_colors)
-            plt.suptitle(f'ep_{self.current_epoch}')
+            plt.suptitle(f'step-{self.global_step}')
             axes[0].imshow(x[b].argmax(dim=0), vmin=0, vmax=self.config['dataset']['n_categories'], cmap=cmap, interpolation='nearest')
             axes[0].invert_yaxis()
             axes[0].set_xticks([])
