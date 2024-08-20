@@ -1189,17 +1189,15 @@ class Trainer(object):
             # y_true = y_true.flatten()  # (bhw)
             # y_pred = rearrange(x_hat, 'b c h w -> (b h w) c')  # (bhw c)
             # categorical_recons_loss = F.cross_entropy(y_pred, y_true)
-            categorical_recons_loss = 0.
 
             # (a), (c)
             # `preserv_loss`: preserves the conditional information in generated samples.
-            # `(vq_loss['loss'] + categorical_recons_loss)` preserves the ability of the decoder.
-            loss = diff_loss + \
-                    self.preserv_loss_weight * preserv_loss + categorical_recons_loss
+            loss = diff_loss + self.preserv_loss_weight * preserv_loss
 
-            # (b)
-            # loss = diff_loss + \
-            #        (vq_loss['loss'] + categorical_recons_loss)
+            # # (b)
+            # loss = diff_loss
+
+        categorical_recons_loss = 0.
         return loss, (diff_loss, preserv_loss, categorical_recons_loss)
 
     def train(self):
