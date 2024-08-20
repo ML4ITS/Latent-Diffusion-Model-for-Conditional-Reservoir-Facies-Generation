@@ -366,7 +366,7 @@ class Unet(nn.Module):
         self.self_condition = self_condition
         input_channels = in_channels * (2 if self_condition else 1)
         init_dim = default(init_dim, dim)
-        self.init_conv = nn.Conv2d(input_channels, init_dim, 7, padding = 3)
+        self.init_conv = nn.Conv2d(input_channels + input_channels, init_dim, 7, padding = 3)
         dims = [init_dim, *map(lambda m: dim * m, dim_mults)]
         in_out = list(zip(dims[:-1], dims[1:]))
         block_klass = partial(ResnetBlock, groups = resnet_block_groups)
@@ -435,13 +435,14 @@ class Unet(nn.Module):
             x_self_cond = default(x_self_cond, lambda: torch.zeros_like(x))
             x = torch.cat((x_self_cond, x), dim = 1)
 
+        mask_token = einops.repeat(self.mask_token, 'd h w -> b d h w', b=x.shape[0])
         if (self.training and np.random.rand() < self.p_unconditional) or (x_cond == None):
-            mask_token = einops.repeat(self.mask_token, 'd h w -> b d h w', b=x.shape[0])
             x_cond = mask_token
 
         # initial convolution
+        x = torch.cat((x, x_cond), dim=1)
         x = self.init_conv(x)
-        xc = self.net_cond.init_conv(x_cond)
+        xc = self.net_cond.init_conv(mask_token)
         r = x.clone()
 
         # time conditioning
